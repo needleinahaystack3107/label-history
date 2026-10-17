@@ -12,6 +12,19 @@ GOLD = ["dim_label", "label_section_current", "fact_label_version", "fact_sectio
         "section_embedding"]
 
 
+def write_if_changed(con, table, path):
+    """Rewrite a file only when its rows changed. A newer DuckDB can write the same rows as
+    different bytes, and that should not count as a data change (or a daily commit)."""
+    if path.exists():
+        diff = con.execute(f"""SELECT count(*) FROM (
+            (SELECT * FROM {table} EXCEPT ALL SELECT * FROM read_parquet('{path}'))
+            UNION ALL
+            (SELECT * FROM read_parquet('{path}') EXCEPT ALL SELECT * FROM {table}))""").fetchone()[0]
+        if diff == 0:
+            return
+    con.execute(f"COPY (SELECT * FROM {table} ORDER BY ALL) TO '{path}' (FORMAT parquet)")
+
+
 def process(data_dir, records, snapshot, embed=gold.embed_texts):
     """Everything after the network call, so tests can run it on fake records."""
     data = Path(data_dir)
@@ -20,10 +33,10 @@ def process(data_dir, records, snapshot, embed=gold.embed_texts):
     out.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
     history.run(con, records, snapshot, prior=silver if silver.exists() else None)
-    con.execute(f"COPY (SELECT * FROM silver_label_section ORDER BY ALL) TO '{silver}' (FORMAT parquet)")
+    write_if_changed(con, "silver_label_section", silver)
     gold.build(con, prior=out / "section_embedding.parquet", embed=embed)
-    for table in GOLD:  # sorted, so unchanged data gives unchanged files
-        con.execute(f"COPY (SELECT * FROM {table} ORDER BY ALL) TO '{out / table}.parquet' (FORMAT parquet)")
+    for table in GOLD:
+        write_if_changed(con, table, out / f"{table}.parquet")
     return con
 
 

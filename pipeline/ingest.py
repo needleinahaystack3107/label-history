@@ -11,9 +11,9 @@ DRUGS = ["metformin", "lisinopril", "atorvastatin", "amlodipine", "levothyroxine
 
 
 def fetch(drug, limit=10):
-    """Current labels for one generic name. openFDA returns one record per label."""
-    response = requests.get(API, params={"search": f'openfda.generic_name:"{drug}"', "limit": limit},
-                            timeout=30)
+    """Current labels for one generic name. An explicit sort picks the same labels every day."""
+    params = {"search": f'openfda.generic_name:"{drug}"', "limit": limit, "sort": "set_id:asc"}
+    response = requests.get(API, params=params, timeout=30)
     response.raise_for_status()
     return response.json()["results"]
 

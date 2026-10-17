@@ -80,3 +80,36 @@ def test_search_returns_current_versions_only(tmp_path):
     con = run_both_days(tmp_path, embed)
     result = search(con, embed(["query"])[0])
     assert set(zip(result.set_id, result.version)) == {("A", 6), ("B", 1)}
+
+
+def test_change_after_the_stored_text_is_still_detected(tmp_path):
+    long = "x" * 2000  # longer than the 1500 characters we store
+    process(tmp_path, [label("A", 1, "20240101", warnings=long + " old")], date(2024, 1, 2), embed=FakeEmbedder())
+    con = process(tmp_path, [label("A", 2, "20250101", warnings=long + " new")], date(2025, 1, 2),
+                  embed=FakeEmbedder())
+    changed = con.execute("SELECT section FROM fact_section_change WHERE version = 2 AND change_type = 'CHANGED'")
+    assert changed.fetchall() == [("warnings",)]
+
+
+def test_old_style_warnings_are_kept(tmp_path):
+    old = label("C", 1, "20200101")
+    old["warnings"] = ["Old format warning."]
+    con = process(tmp_path, [old], date(2024, 1, 2), embed=FakeEmbedder())
+    text = con.execute("SELECT text FROM label_section_current WHERE set_id = 'C' AND section = 'warnings'")
+    assert text.fetchone()[0] == "Old format warning."
+
+
+def test_unchanged_data_does_not_rewrite_files(tmp_path):
+    run_both_days(tmp_path, FakeEmbedder())
+    files = sorted(tmp_path.rglob("*.parquet"))
+    before = [f.stat().st_mtime_ns for f in files]
+    process(tmp_path, DAY2, date(2025, 1, 3), embed=FakeEmbedder())
+    assert [f.stat().st_mtime_ns for f in files] == before
+
+
+def test_search_shows_shared_text_once(tmp_path):
+    same = [label("A", 1, "20240101", indications="Same text."), label("B", 1, "20240101", indications="Same text.")]
+    embed = FakeEmbedder()
+    con = process(tmp_path, same, date(2024, 1, 2), embed=embed)
+    result = search(con, embed(["query"])[0])
+    assert len(result) == 1 and result.labels_sharing[0] == 2
