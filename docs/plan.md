@@ -12,8 +12,8 @@ Workflow: brainstorm -> design (`design.md`) -> this plan -> implement one task 
 - [x] 5. Incremental embeddings keyed by text hash — `pipeline/gold.py`
 - [x] 6. Tests on two snapshots — `tests/test_history.py`
 - [x] 7. Runner and search — `pipeline/run.py`, `pipeline/search.py`, `app.py`
-- [ ] 8. Daily refresh workflow — `.github/workflows/daily.yml`
-- [ ] 9. Push to GitHub and confirm the workflow is green
+- [x] 8. Daily refresh workflow — `.github/workflows/daily.yml`
+- [x] 9. Push to GitHub and confirm the workflow is green
 
 ## Lessons
 
