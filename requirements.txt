@@ -1,0 +1,6 @@
+duckdb
+pandas
+requests
+fastembed
+streamlit
+pytest
