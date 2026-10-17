@@ -40,7 +40,12 @@ snapshot date kept.
   Cheap, and it works in SQL.
 - **Embeddings keyed by text hash.** An unchanged section keeps its vector; only new text is embedded.
 - **Commit silver and gold, not bronze.** Silver is the history, so it must live in git. Bronze would be too large.
-- **Three sections only** (boxed warning, warnings and cautions, indications), capped at 1500 characters.
+- **Three sections only:** boxed warning, warnings (`warnings_and_cautions` on newer labels, `warnings`
+  on older and over-the-counter ones) and indications. Text is stored capped at 1500 characters, but
+  hashed in full, so a change late in a long section is still detected.
+- **Rewrite a file only when its rows change.** A newer DuckDB can write identical rows as different
+  bytes; comparing rows keeps the daily job from committing when nothing changed.
+- **Search returns each distinct text once.** Many manufacturers share word-for-word label text.
 
 ## Out of scope
 

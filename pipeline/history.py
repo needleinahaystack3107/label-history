@@ -3,16 +3,22 @@ import hashlib
 
 import pandas as pd
 
-SECTIONS = ["boxed_warning", "warnings_and_cautions", "indications_and_usage"]
-MAX_CHARS = 1500
+# Section name -> openFDA fields to try in order. Newer labels use `warnings_and_cautions`,
+# older ones (and most over-the-counter labels) use `warnings`.
+SECTIONS = {
+    "boxed_warning": ["boxed_warning"],
+    "warnings": ["warnings_and_cautions", "warnings"],
+    "indications": ["indications_and_usage"],
+}
+MAX_CHARS = 1500  # stored and embedded; the hash covers the full text
 
 
 def flatten(record, snapshot):
     """Three rows per label version. Empty sections keep a row, so a removed warning shows up."""
     openfda = record.get("openfda", {})
     rows = []
-    for section in SECTIONS:
-        text = " ".join(record.get(section, [])).strip()[:MAX_CHARS]
+    for section, fields in SECTIONS.items():
+        full = " ".join(next((record[f] for f in fields if record.get(f)), [])).strip()
         rows.append({
             "set_id": record["set_id"],
             "version": int(record["version"]),
@@ -22,8 +28,9 @@ def flatten(record, snapshot):
             "generic_name": (openfda.get("generic_name") or ["Unknown"])[0],
             "manufacturer": (openfda.get("manufacturer_name") or ["Unknown"])[0],
             "section": section,
-            "text": text,
-            "text_hash": hashlib.sha1(text.encode()).hexdigest()[:16],
+            "text": full[:MAX_CHARS],
+            # Hash the full text: a change after the first 1500 characters is still a change.
+            "text_hash": hashlib.sha1(full.encode()).hexdigest()[:16],
         })
     return rows
 
