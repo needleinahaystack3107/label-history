@@ -33,6 +33,8 @@ query = st.text_input("Which labels talk about ...", "liver injury")
 if query:
     vector = next(iter(embedder.query_embed(query))).tolist()
     for row in search(con, vector).itertuples():
-        st.markdown(f"**{row.generic_name} · {row.brand_name}** — {row.section}, version {row.version}, match {row.score:.2f}")
+        shared = f" (same text in {row.labels_sharing - 1} other labels)" if row.labels_sharing > 1 else ""
+        st.markdown(f"**{row.generic_name} · {row.brand_name}** — {row.section}, version {row.version}, "
+                    f"match {row.score:.2f}{shared}")
         with st.expander("Section text"):
             st.write(row.text or "(empty)")
