@@ -1,0 +1,35 @@
+name: Daily refresh
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+      - run: python -m pipeline.run | tee run.txt
+      - name: Commit if the history changed
+        run: |
+          git add -A data/silver data/gold
+          if git diff --cached --quiet; then
+            echo "No change today."
+            exit 0
+          fi
+          echo "- $(date -u +%F): $(tail -1 run.txt)" >> learn/LOG.md
+          git config user.name "Abhijit Haridas"
+          git config user.email "${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com"
+          git add learn/LOG.md
+          git commit -m "Refresh label history"
+          git push
